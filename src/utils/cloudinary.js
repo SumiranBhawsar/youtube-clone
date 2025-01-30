@@ -18,15 +18,17 @@ const uploadOnCloudinary = async (localFilePath) => {
         });
 
         // file has been uploaded successfully
-        console.log(
-            "File has been uploaded successfully on cloudinary : ",
-            response.url
-        );
+        // console.log(
+        //     "File has been uploaded successfully on cloudinary : ",
+        //     response.url
+        // );
 
-        return response.url;
-    } catch (error) {
+        // console.log(response);
+
         fs.unlinkSync(localFilePath);
-        return null;
+        return response;
+    } catch (error) {
+        console.log("ERROR in CLOUDINARY : ", error.message);
     }
 };
 
