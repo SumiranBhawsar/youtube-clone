@@ -3,7 +3,7 @@ import { ApiError } from "../utils/ApiError.js";
 import jwt from "jsonwebtoken";
 import { User } from "../models/user.model.js";
 
-export const verifyJWT = asyncHandler(async (req, res) => {
+export const verifyJWT = asyncHandler(async (req, res, next) => {
     // get jwt token from cookie or header
     // check if token present or ton
     // verify token is valid
