@@ -5,7 +5,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 
 const getAllVideos = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
+    const { page = 1, limit = 12, query, sortBy, sortType, userId } = req.query;
     //TODO: get all videos based on query, sort, pagination
 });
 
@@ -36,7 +36,7 @@ const publishAVideo = asyncHandler(async (req, res) => {
     const thambnail = await uploadOnCloudinary(thambnailLocalPath);
     const videoFile = await uploadOnCloudinary(videoFileLocalPath);
 
-    // console.log(videoFile);
+    console.log(videoFile);
 
     if (!thambnail || !videoFile) {
         throw new ApiError(400, "Thumbnail and video file are required");
@@ -67,8 +67,19 @@ const publishAVideo = asyncHandler(async (req, res) => {
 });
 
 const getVideoById = asyncHandler(async (req, res) => {
-    const { videoId } = req.params;
-    //TODO: get video by id
+    const { id } = req.params;
+
+    console.log(id);
+
+    const findedVideo = await Video.findById(id);
+
+    if (!findedVideo) {
+        throw new ApiError(404, "Video not found");
+    }
+
+    res.status(201).json(
+        new ApiResponse(201, "Video found successfully", findedVideo)
+    );
 });
 
 const updateVideo = asyncHandler(async (req, res) => {
