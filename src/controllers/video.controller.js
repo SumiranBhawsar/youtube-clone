@@ -83,13 +83,81 @@ const getVideoById = asyncHandler(async (req, res) => {
 });
 
 const updateVideo = asyncHandler(async (req, res) => {
+    // get video id by perams
+    // find video in database
+    // if video not found then throw error
+    // destructured the details from video like title, description, thumbnail
+    // change the title, description, and thumbnail according to the user
+    // change the diffence in database and save
+    // check the diffence are saved in databse
+    // return the response and updated video
+
     const { videoId } = req.params;
     //TODO: update video details like title, description, thumbnail
+
+    if (!videoId) {
+        throw new ApiError(400, "Video id is required");
+    }
+
+    const foundedVideo = await Video.findById(videoId);
+
+    if (!foundedVideo) {
+        throw new ApiError(400, "video not found in database");
+    }
+
+    const { title, description, thumbnail } = foundedVideo;
+
+    let { newTitle, newDescription } = req.body;
+
+    const newThumbnailLocalPath = req.files?.newThumbnail[0]?.path;
+
+    if (!newThumbnailLocalPath) {
+        throw new ApiError(400, "newThumbnailLocalPath not found");
+    }
+
+    let newThumbnail = await uploadOnCloudinary(newThumbnailLocalPath);
+
+    // console.log(newThumbnail);
+
+    if (!newTitle) {
+        newTitle = title;
+    }
+    if (!newDescription) {
+        newDescription = description;
+    }
+
+    if (!newThumbnail) {
+        newThumbnail = thumbnail;
+    }
+
+    const updatedVideoDetails = await Video.findByIdAndUpdate(
+        videoId,
+        {
+            title: newTitle,
+            description: newDescription,
+            thumbnail: newThumbnail.url,
+        },
+        {
+            new: true,
+        }
+    );
+
+    res.status(201).json(
+        new ApiResponse(201, "successfully", updatedVideoDetails)
+    );
 });
 
 const deleteVideo = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
     //TODO: delete video
+
+    // console.log(videoId);
+
+    const deletedVideo = await Video.findByIdAndDelete(videoId);
+
+    res.status(201).json(
+        new ApiResponse(201, "Video deleted successfully ", deletedVideo)
+    );
 });
 
 const togglePublishStatus = asyncHandler(async (req, res) => {
