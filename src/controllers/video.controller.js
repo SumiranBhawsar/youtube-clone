@@ -115,9 +115,11 @@ const updateVideo = asyncHandler(async (req, res) => {
     const updatedVideoDetails = await Video.findByIdAndUpdate(
         videoId,
         {
-            title,
-            description,
-            thumbnail: newThumbnailUrl,
+            $set: {
+                title,
+                description,
+                thumbnail: newThumbnailUrl,
+            },
         },
         {
             new: true,
@@ -156,7 +158,9 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
     const updatedVideo = await Video.findByIdAndUpdate(
         videoId, // use videoId directly
         {
-            isPublished: !video.isPublished,
+            $set: {
+                isPublished: !video.isPublished,
+            },
         },
         {
             new: true,
