@@ -4,7 +4,6 @@ import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
-import mongoose from "mongoose";
 
 const generateAccessAndRefereshTokens = async (userId) => {
     try {
@@ -248,4 +247,71 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     }
 });
 
-export { registerUser, loginUser, logoutUser, refreshAccessToken };
+const changeCurrentUserPassword = asyncHandler(async (req, res) => {
+    // get data from req body
+    // check if new password or confirm password is equal
+    // find user from database
+    // check if old password is correct
+    // update password and save in database
+    // return response
+
+    // const { oldPassword, newPassword, confirmPassword } = req.body;
+    const { oldPassword, newPassword, confirmPassword } = req.body;
+
+    console.log(oldPassword, newPassword, confirmPassword);
+
+    if (!oldPassword || !newPassword || !confirmPassword) {
+        throw new ApiError(400, "All fields are required");
+    }
+
+    if (newPassword !== confirmPassword) {
+        throw new ApiError(
+            400,
+            "New password and confirm password do not match"
+        );
+    }
+
+    const user = await User.findById(req.user._id);
+
+    const isPasswordCorrect = await user.isPasswordCorrect(oldPassword);
+
+    if (!isPasswordCorrect) {
+        throw new ApiError(401, "Old password is incorrect");
+    }
+
+    user.password = newPassword;
+
+    const response = await user.save({ validateBeforeSave: false });
+
+    console.log(response);
+
+    res.status(200).json(
+        new ApiResponse(200, {}, "Password changed successfully")
+    );
+});
+
+const getCurrentUser = asyncHandler(async (req, res) => {
+    // Get the current user from the request
+    const loggendInUser = req.user;
+
+    const currentUse = await User.findById(loggendInUser._id).select(
+        "-password -refreshToken"
+    );
+
+    if (!currentUse) {
+        throw new ApiError(404, "User not found");
+    }
+
+    res.status(200).json(
+        new ApiResponse(200, currentUse, "Current user fetched successfully")
+    );
+});
+
+export {
+    registerUser,
+    loginUser,
+    logoutUser,
+    refreshAccessToken,
+    changeCurrentUserPassword,
+    getCurrentUser,
+};
