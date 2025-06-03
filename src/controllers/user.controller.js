@@ -407,7 +407,10 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     res.status(200).json(
         new ApiResponse(
             200,
-            updatedAvatarUser,
+            {
+                updatedAvatarUser,
+                response,
+            },
             "User avatar updated successfully"
         )
     );
@@ -428,6 +431,12 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
     if (!coverImageLocalPath) {
         throw new ApiError(400, "Cover image file is required");
     }
+
+    const user = await User.findById(req.user._id);
+
+    const publicId = await extractPublicIdFromURL(user.coverImage);
+
+    const response = await destroyOnCloudinary(publicId);
 
     const coverImage = await uploadOnCloudinary(coverImageLocalPath);
 
@@ -456,7 +465,10 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
     res.status(200).json(
         new ApiResponse(
             200,
-            updatedCoverImageUser,
+            {
+                updatedCoverImageUser,
+                response,
+            },
             "User cover image updated successfully"
         )
     );
