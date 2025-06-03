@@ -4,6 +4,8 @@ import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
+import { extractPublicIdFromURL } from "../utils/extractPublicIdFromURL.js";
+import { destroyOnCloudinary } from "../utils/cloudinary_destroy.js";
 
 const generateAccessAndRefereshTokens = async (userId) => {
     try {
@@ -366,7 +368,21 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Avatar file is required");
     }
 
+    const user = await User.findById(req.user._id);
+
+    // console.log("User: ", user);
+
+    const publicId = await extractPublicIdFromURL(user.avatar);
+
+    // console.log(publicId);
+
+    const response = await destroyOnCloudinary(publicId);
+
+    // console.log(response);
+
     const updatedAvatar = await uploadOnCloudinary(avatarLocalPath);
+
+    // console.log("Updated Avatar: ", updatedAvatar);
 
     if (!updatedAvatar) {
         throw new ApiError(400, "Avatar file is required");
