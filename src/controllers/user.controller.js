@@ -8,7 +8,6 @@ import { extractPublicIdFromURL } from "../utils/extractPublicIdFromURL.js";
 import { destroyOnCloudinary } from "../utils/cloudinary_destroy.js";
 import mongoose from "mongoose";
 
-
 const generateAccessAndRefereshTokens = async (userId) => {
     try {
         const user = await User.findById(userId);
@@ -177,8 +176,8 @@ const logoutUser = asyncHandler(async (req, res) => {
     await User.findByIdAndUpdate(
         req.user,
         {
-            $set: {
-                refreshToken: "", // this removes the field from document
+            $unset: {
+                refreshToken: 1, // Remove the refreshToken field
             },
         },
         {
@@ -607,8 +606,6 @@ const getWatchHistory = asyncHandler(async (req, res) => {
             )
         );
 });
-
-
 
 export {
     registerUser,

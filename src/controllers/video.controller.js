@@ -3,6 +3,8 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { User } from "../models/user.model.js";
+import mongoose from "mongoose";
 
 const getAllVideos = asyncHandler(async (req, res) => {
     const { page = 1, limit = 12, query, sortBy, sortType, userId } = req.query;
@@ -60,7 +62,7 @@ const publishAVideo = asyncHandler(async (req, res) => {
 const getVideoById = asyncHandler(async (req, res) => {
     const { id } = req.params;
 
-    console.log(id);
+    // console.log(id);
 
     const findedVideo = await Video.findById(id);
 
