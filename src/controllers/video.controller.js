@@ -69,27 +69,12 @@ const getVideoById = asyncHandler(async (req, res) => {
     if (!findedVideo) {
         throw new ApiError(404, "Video not found");
     }
-
-    const addVideoIdInWatchHistoryField = await User.aggregate([
-        {
-            $match: {
-                _id: new mongoose.Types.ObjectId(req.user),
-            },
-        },
-        {
-            $set: {
-                watchHistory: {
-                    $cond: {
-                        if: { $in: [findedVideo._id, "$watchHistory"] },
-                        then: "$watchHistory",
-                        else: {
-                            $concatArrays: ["$watchHistory", [findedVideo._id]],
-                        },
-                    },
-                },
-            },
-        },
-    ]);
+    // Add video to user's watch history if not already present
+    const addVideoIdInWatchHistoryField = await User.findByIdAndUpdate(
+        req.user,
+        { $addToSet: { watchHistory: findedVideo._id } },
+        { new: true }
+    );
 
     console.log(addVideoIdInWatchHistoryField);
 
