@@ -70,8 +70,33 @@ const getVideoById = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Video not found");
     }
 
+    const addVideoIdInWatchHistoryField = await User.aggregate([
+        {
+            $match: {
+                _id: new mongoose.Types.ObjectId(req.user),
+            },
+        },
+        {
+            $set: {
+                watchHistory: {
+                    $cond: {
+                        if: { $in: [findedVideo._id, "$watchHistory"] },
+                        then: "$watchHistory",
+                        else: {
+                            $concatArrays: ["$watchHistory", [findedVideo._id]],
+                        },
+                    },
+                },
+            },
+        },
+    ]);
+
+    console.log(addVideoIdInWatchHistoryField);
+
     res.status(201).json(
-        new ApiResponse(201, "Video found successfully", findedVideo)
+        new ApiResponse(201, "Video found successfully", {
+            video: findedVideo,
+        })
     );
 });
 
