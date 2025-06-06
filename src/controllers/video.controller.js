@@ -7,8 +7,60 @@ import { User } from "../models/user.model.js";
 import mongoose from "mongoose";
 
 const getAllVideos = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 12, query, sortBy, sortType, userId } = req.query;
-    //TODO: get all videos based on query, sort, pagination
+    let {
+        page = 1,
+        limit = 12,
+        query = "",
+        sortBy = "createdAt",
+        sortType = "desc",
+    } = req.query;
+
+    // Parse integers
+    page = parseInt(page);
+    limit = parseInt(limit);
+
+    if (!query) {
+        throw new ApiError(401, "All fields are required");
+    }
+
+    // Match conditions
+    const match = {
+        // VideoCreater: new mongoose.Types.ObjectId(userId),
+        $or: [
+            { title: { $regex: query, $options: "i" } },
+            { description: { $regex: query, $options: "i" } },
+        ],
+    };
+
+    // Sorting
+    const sortDirection = sortType === "asc" ? 1 : -1;
+    const sort = { [sortBy]: sortDirection };
+
+    // Aggregation pipeline
+    const aggregate = Video.aggregate([{ $match: match }, { $sort: sort }]);
+
+    // Pagination options
+    const options = {
+        page,
+        limit,
+    };
+
+    // Apply pagination on aggregation
+    const allVideosAccordingToQuery = await Video.aggregatePaginate(
+        aggregate,
+        options
+    );
+
+    // Send response
+    res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                allVideosAccordingToQuery,
+            },
+            "All Videos are fetched successfully"
+        )
+    );
 });
 
 const publishAVideo = asyncHandler(async (req, res) => {
@@ -142,6 +194,7 @@ const updateVideo = asyncHandler(async (req, res) => {
         new ApiResponse(200, "Video updated successfully", updatedVideoDetails)
     );
 });
+
 const deleteVideo = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
     //TODO: delete video

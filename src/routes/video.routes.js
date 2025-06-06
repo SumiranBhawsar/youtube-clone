@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
     deleteVideo,
+    getAllVideos,
     getVideoById,
     publishAVideo,
     togglePublishStatus,
@@ -11,6 +12,7 @@ import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
+router.route("/get-all-videos").get(verifyJWT, getAllVideos);
 router.route("/upload").post(
     upload.fields([
         {
@@ -39,6 +41,8 @@ router.route("/update/:videoId").patch(
 );
 
 router.route("/delete/:videoId").delete(verifyJWT, deleteVideo);
-router.route("/managePublishStatus/:videoId").patch(verifyJWT, togglePublishStatus);
+router
+    .route("/managePublishStatus/:videoId")
+    .patch(verifyJWT, togglePublishStatus);
 
 export default router;
