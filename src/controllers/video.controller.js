@@ -111,11 +111,21 @@ const publishAVideo = asyncHandler(async (req, res) => {
 });
 
 const getVideoById = asyncHandler(async (req, res) => {
-    const { id } = req.params;
+    const { videoId } = req.params;
 
     // console.log(id);
 
-    const findedVideo = await Video.findById(id);
+    const findedVideo = await Video.findByIdAndUpdate(
+        videoId,
+        {
+            $inc: {
+                views: 1,
+            },
+        },
+        {
+            new: true,
+        }
+    );
 
     if (!findedVideo) {
         throw new ApiError(404, "Video not found");
@@ -123,11 +133,20 @@ const getVideoById = asyncHandler(async (req, res) => {
     // Add video to user's watch history if not already present
     const addVideoIdInWatchHistoryField = await User.findByIdAndUpdate(
         req.user,
-        { $addToSet: { watchHistory: findedVideo._id } },
-        { new: true }
+        {
+            $addToSet: {
+                watchHistory: findedVideo._id,
+            },
+        },
+        {
+            new: true,
+        }
     );
 
-    console.log(addVideoIdInWatchHistoryField);
+    if (!addVideoIdInWatchHistoryField) {
+        throw new ApiError(404, "video not found");
+    }
+    // console.log(addVideoIdInWatchHistoryField);
 
     res.status(201).json(
         new ApiResponse(201, "Video found successfully", {
