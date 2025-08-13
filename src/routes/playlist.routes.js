@@ -16,7 +16,7 @@ router.use(verifyJWT);
 
 router.route("/").post(createPlaylist);
 
-router.route("/user/:userId").get(getUserPlaylists);
+router.route("/user/:userId").get(getUserPlaylists); // ✨ ADD THIS ROUTE
 
 router
     .route("/:playlistId")

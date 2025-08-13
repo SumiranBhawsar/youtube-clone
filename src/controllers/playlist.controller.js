@@ -51,54 +51,146 @@ const createPlaylist = asyncHandler(async (req, res) => {
 });
 
 const getUserPlaylists = asyncHandler(async (req, res) => {
-    // get user id from the req.params
-    // check user is present in database or not
-    // find all playlists created by the user
-    // send response
-
     const { userId } = req.params;
 
-    const user = await User.findById(userId);
-
-    if (!user) {
-        throw new ApiError(404, "User not found");
+    if (!mongoose.isValidObjectId(userId)) {
+        throw new ApiError(400, "Invalid User ID");
     }
 
-    const allPlaylists = await Playlist.aggregate([
+    const playlists = await Playlist.aggregate([
         {
             $match: {
-                owner: user._id,
+                // Assuming the owner field in your Playlist model is named 'owner'
+                owner: new mongoose.Types.ObjectId(userId),
+            },
+        },
+        // Lookup the videos associated with each playlist
+        {
+            $lookup: {
+                from: "videos",
+                localField: "videos",
+                foreignField: "_id",
+                as: "videos",
+            },
+        },
+        // Add fields for total videos and the first video's thumbnail
+        {
+            $addFields: {
+                totalVideos: { $size: "$videos" },
+                // Get the thumbnail of the first video in the array
+                thumbnail: { $first: "$videos.thumbnail" },
+            },
+        },
+        // Project the final fields to send to the client
+        {
+            $project: {
+                _id: 1,
+                name: 1,
+                description: 1,
+                totalVideos: 1,
+                thumbnail: 1, // This is the new, crucial field
+                createdAt: 1,
+                updatedAt: 1,
             },
         },
     ]);
 
-    res.status(200).json(
-        new ApiResponse(
-            200,
-            {
-                allPlaylists,
-            },
-            "All Playlists are fetched successfully"
-        )
-    );
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                playlists,
+                "User playlists fetched successfully"
+            )
+        );
 });
 
 const getPlaylistById = asyncHandler(async (req, res) => {
     const { playlistId } = req.params;
-    //TODO: get playlist by id
 
-    const playlist = await Playlist.findById(playlistId);
+    if (!mongoose.isValidObjectId(playlistId)) {
+        throw new ApiError(400, "Invalid Playlist ID");
+    }
 
-    // console.log(playlist);
-    res.status(200).json(
-        new ApiResponse(
-            200,
-            {
-                playlist,
+    const playlist = await Playlist.aggregate([
+        {
+            $match: {
+                _id: new mongoose.Types.ObjectId(playlistId),
             },
-            "Playlist get by Id successful"
-        )
-    );
+        },
+        // Lookup the full video objects from the 'videos' array of ObjectIDs
+        {
+            $lookup: {
+                from: "videos",
+                localField: "videos",
+                foreignField: "_id",
+                as: "videos",
+                // Also get the owner of each video
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "VideoCreater",
+                            foreignField: "_id",
+                            as: "owner",
+                            pipeline: [
+                                {
+                                    $project: {
+                                        fullName: 1,
+                                        username: 1,
+                                        avatar: 1,
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        $addFields: {
+                            owner: { $first: "$owner" },
+                        },
+                    },
+                ],
+            },
+        },
+        // Lookup the playlist owner's details
+        {
+            $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "owner",
+                pipeline: [
+                    {
+                        $project: {
+                            fullName: 1,
+                            username: 1,
+                            avatar: 1,
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            $addFields: {
+                owner: { $first: "$owner" },
+                totalVideos: { $size: "$videos" },
+                totalViews: { $sum: "$videos.views" },
+                // Get the thumbnail of the first video for the cover image
+                firstVideoThumbnail: { $first: "$videos.thumbnail" },
+            },
+        },
+    ]);
+
+    if (!playlist.length) {
+        throw new ApiError(404, "Playlist not found");
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, playlist[0], "Playlist fetched successfully")
+        );
 });
 
 const addVideoToPlaylist = asyncHandler(async (req, res) => {

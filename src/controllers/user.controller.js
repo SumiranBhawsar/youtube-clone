@@ -7,6 +7,7 @@ import jwt from "jsonwebtoken";
 import { extractPublicIdFromURL } from "../utils/extractPublicIdFromURL.js";
 import { destroyOnCloudinary } from "../utils/cloudinary_destroy.js";
 import mongoose from "mongoose";
+import { Video } from "../models/video.model.js";
 
 const generateAccessAndRefereshTokens = async (userId) => {
     try {
@@ -152,7 +153,8 @@ const loginUser = asyncHandler(async (req, res) => {
 
     const options = {
         httpOnly: true,
-        secure: true,
+        secure: process.env.NODE_ENV === "production", // true only in production
+        sameSite: "strict", // prevents CSRF
     };
 
     return res
@@ -227,9 +229,10 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
         const { accessToken, newRefreshToken } =
             await generateAccessAndRefereshTokens(user._id);
 
-        const option = {
+        const options = {
             httpOnly: true,
-            secure: true,
+            secure: process.env.NODE_ENV === "production", // true only in production
+            sameSite: "strict", // prevents CSRF
         };
 
         res.status(200)
@@ -476,16 +479,16 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 });
 
 const getUserChannelProfile = asyncHandler(async (req, res) => {
-    const { username } = req.params;
+    const { channelId } = req.params;
 
-    if (!username?.trim()) {
-        throw new ApiError(400, "username is missing");
+    if (!channelId?.trim()) {
+        throw new ApiError(400, "channelId is missing");
     }
 
     const channel = await User.aggregate([
         {
             $match: {
-                username: username?.toLowerCase(),
+                _id: new mongoose.Types.ObjectId(channelId),
             },
         },
         {
@@ -505,13 +508,17 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
             },
         },
         {
+            $lookup: {
+                from: "videos",
+                localField: "_id",
+                foreignField: "VideoCreater", // make sure this matches your Video model field name
+                as: "videos",
+            },
+        },
+        {
             $addFields: {
-                subscribersCount: {
-                    $size: "$subscribers",
-                },
-                channelsSubscribedToCount: {
-                    $size: "$subscribedTo",
-                },
+                subscribersCount: { $size: "$subscribers" },
+                channelsSubscribedToCount: { $size: "$subscribedTo" },
                 isSubscribed: {
                     $cond: {
                         if: { $in: [req.user?._id, "$subscribers.subscriber"] },
@@ -519,6 +526,8 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
                         else: false,
                     },
                 },
+                totalVideos: { $size: "$videos" },
+                totalViews: { $sum: "$videos.views" },
             },
         },
         {
@@ -531,22 +540,20 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
                 avatar: 1,
                 coverImage: 1,
                 email: 1,
+                totalVideos: 1,
+                totalViews: 1,
             },
         },
     ]);
 
     if (!channel?.length) {
-        throw new ApiError(404, "channel does not exists");
+        throw new ApiError(404, "Channel does not exist");
     }
 
     return res
         .status(200)
         .json(
-            new ApiResponse(
-                200,
-                channel[0],
-                "User channel fetched successfully"
-            )
+            new ApiResponse(200, channel[0], "User channel fetched successfully")
         );
 });
 

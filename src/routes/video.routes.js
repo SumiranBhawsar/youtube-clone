@@ -3,6 +3,7 @@ import {
     deleteVideo,
     getAllVideos,
     getVideoById,
+    getVideosByChannel,
     publishAVideo,
     togglePublishStatus,
     updateVideo,
@@ -12,7 +13,7 @@ import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
-router.route("/get-all-videos").get(verifyJWT, getAllVideos);
+router.route("/get-all-videos").get(getAllVideos);
 router.route("/upload").post(
     upload.fields([
         {
@@ -39,6 +40,8 @@ router.route("/update/:videoId").patch(
     ]),
     updateVideo
 );
+
+router.route("/channel/:channelId/videos").get(verifyJWT, getVideosByChannel);
 
 router.route("/delete/:videoId").delete(verifyJWT, deleteVideo);
 router

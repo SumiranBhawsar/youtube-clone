@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { Video } from "../models/video.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
@@ -5,11 +6,69 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { User } from "../models/user.model.js";
 
+// const getAllVideos = asyncHandler(async (req, res) => {
+//     let {
+//         page = 1,
+//         limit = 12,
+//         query = "",
+//         sortBy = "createdAt",
+//         sortType = "desc",
+//     } = req.query;
+
+//     // Parse integers
+//     page = parseInt(page);
+//     limit = parseInt(limit);
+
+//     if (!query) {
+//         throw new ApiError(401, "All fields are required");
+//     }
+
+//     // Match conditions
+//     const match = {
+//         // VideoCreater: new mongoose.Types.ObjectId(userId),
+//         $or: [
+//             { title: { $regex: query, $options: "i" } },
+//             { description: { $regex: query, $options: "i" } },
+//         ],
+//     };
+
+//     // Sorting
+//     const sortDirection = sortType === "asc" ? 1 : -1;
+//     const sort = { [sortBy]: sortDirection };
+
+//     // Aggregation pipeline
+//     const aggregate = Video.aggregate([{ $match: match }, { $sort: sort }]);
+
+//     // Pagination options
+//     const options = {
+//         page,
+//         limit,
+//     };
+
+//     // Apply pagination on aggregation
+//     const allVideosAccordingToQuery = await Video.aggregatePaginate(
+//         aggregate,
+//         options
+//     );
+
+//     // Send response
+//     res.status(200).json(
+//         new ApiResponse(
+//             200,
+//             {
+//                 allVideosAccordingToQuery,
+//             },
+//             "All Videos are fetched successfully"
+//         )
+//     );
+// });
+
+// video.controller.js
 const getAllVideos = asyncHandler(async (req, res) => {
     let {
         page = 1,
         limit = 12,
-        query = "",
+        query = "", // Allow empty query
         sortBy = "createdAt",
         sortType = "desc",
     } = req.query;
@@ -18,26 +77,63 @@ const getAllVideos = asyncHandler(async (req, res) => {
     page = parseInt(page);
     limit = parseInt(limit);
 
-    if (!query) {
-        throw new ApiError(401, "All fields are required");
-    }
-
     // Match conditions
-    const match = {
-        // VideoCreater: new mongoose.Types.ObjectId(userId),
-        $or: [
-            { title: { $regex: query, $options: "i" } },
-            { description: { $regex: query, $options: "i" } },
-        ],
-    };
+    const match = query
+        ? {
+              $or: [
+                  { title: { $regex: query, $options: "i" } },
+                  { description: { $regex: query, $options: "i" } },
+              ],
+          }
+        : {}; // Empty match to fetch all videos
 
     // Sorting
     const sortDirection = sortType === "asc" ? 1 : -1;
     const sort = { [sortBy]: sortDirection };
 
     // Aggregation pipeline
-    const aggregate = Video.aggregate([{ $match: match }, { $sort: sort }]);
-
+    const aggregate = Video.aggregate([
+        // Stage 1: Match videos based on query, userId, and published status
+        {
+            $match: match,
+        },
+        // Stage 2: Lookup owner information from the 'users' collection
+        {
+            $lookup: {
+                from: "users",
+                localField: "VideoCreater",
+                foreignField: "_id",
+                as: "ownerDetails",
+                pipeline: [
+                    {
+                        $project: {
+                            username: 1,
+                            avatar: 1,
+                            fullName: 1,
+                        },
+                    },
+                ],
+            },
+        },
+        // Stage 3: Deconstruct the ownerDetails array to a single object
+        {
+            $addFields: {
+                owner: {
+                    $first: "$ownerDetails",
+                },
+            },
+        },
+        // Stage 4: Remove the now-redundant ownerDetails array
+        {
+            $project: {
+                ownerDetails: 0,
+            },
+        },
+        // Stage 5: Sort the results
+        {
+            $sort: sort,
+        },
+    ]);
     // Pagination options
     const options = {
         page,
@@ -50,13 +146,13 @@ const getAllVideos = asyncHandler(async (req, res) => {
         options
     );
 
+    //console.log("allVideosAccordingToQuery", allVideosAccordingToQuery);
+
     // Send response
     res.status(200).json(
         new ApiResponse(
             200,
-            {
-                allVideosAccordingToQuery,
-            },
+            { allVideosAccordingToQuery },
             "All Videos are fetched successfully"
         )
     );
@@ -112,46 +208,113 @@ const publishAVideo = asyncHandler(async (req, res) => {
 
 const getVideoById = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
+    const userId = req.user?._id; // Get the logged-in user's ID, if they exist
 
-    // console.log(id);
+    if (!mongoose.isValidObjectId(videoId)) {
+        throw new ApiError(400, "Invalid video ID");
+    }
 
-    const findedVideo = await Video.findByIdAndUpdate(
-        videoId,
+    // Add video to the current user's watch history
+    if (userId) {
+        await User.findByIdAndUpdate(userId, {
+            $addToSet: { watchHistory: videoId },
+        });
+    }
+
+    const video = await Video.aggregate([
+        // Stage 1: Match the requested video and increment its views
         {
-            $inc: {
-                views: 1,
+            $match: {
+                _id: new mongoose.Types.ObjectId(videoId),
             },
         },
         {
-            new: true,
-        }
-    );
+            $set: { views: { $add: ["$views", 1] } },
+        },
+        // Stage 2: Get owner (channel) details from the users collection
+        {
+            $lookup: {
+                from: "users",
+                localField: "VideoCreater", // Corrected from your file: 'owner' is often used, but yours is 'VideoCreater'
+                foreignField: "_id",
+                as: "owner",
+                pipeline: [
+                    {
+                        $project: {
+                            username: 1,
+                            fullName: 1,
+                            avatar: 1,
+                        },
+                    },
+                ],
+            },
+        },
+        // Stage 3: Get the number of likes for this video
+        {
+            $lookup: {
+                from: "likes",
+                localField: "_id",
+                foreignField: "video",
+                as: "likes",
+            },
+        },
+        // Stage 4: Get the subscriber count for the channel (video owner)
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "VideoCreater",
+                foreignField: "channel",
+                as: "subscribers",
+            },
+        },
+        // Stage 5: Add final fields for easier frontend use
+        {
+            $addFields: {
+                // Deconstruct the owner array to be a single object
+                owner: { $first: "$owner" },
+                // Get a total count of likes
+                likesCount: { $size: "$likes" },
+                // Get a total count of subscribers
+                subscribersCount: { $size: "$subscribers" },
+                // Check if the current logged-in user has liked this video
+                isLiked: {
+                    $cond: {
+                        if: { $in: [userId, "$likes.likedBy"] },
+                        then: true,
+                        else: false,
+                    },
+                },
+                // Check if the current logged-in user is subscribed to this channel
+                isSubscribed: {
+                    $cond: {
+                        if: { $in: [userId, "$subscribers.subscriber"] },
+                        then: true,
+                        else: false,
+                    },
+                },
+            },
+        },
+        // Stage 6: Clean up the response by removing temporary fields
+        {
+            $project: {
+                likes: 0,
+                subscribers: 0,
+            },
+        },
+    ]);
 
-    if (!findedVideo) {
+    console.log("Video : ", video);
+
+    if (!video?.length) {
         throw new ApiError(404, "Video not found");
     }
-    // Add video to user's watch history if not already present
-    const addVideoIdInWatchHistoryField = await User.findByIdAndUpdate(
-        req.user,
-        {
-            $addToSet: {
-                watchHistory: findedVideo._id,
-            },
-        },
-        {
-            new: true,
-        }
-    );
 
-    if (!addVideoIdInWatchHistoryField) {
-        throw new ApiError(404, "video not found");
-    }
-    // console.log(addVideoIdInWatchHistoryField);
+    // Increment the view count in the actual document
+    await Video.findByIdAndUpdate(videoId, { $inc: { views: 1 } });
 
-    res.status(201).json(
-        new ApiResponse(201, "Video found successfully", {
-            video: findedVideo,
-        })
+    // Send the rich video data object
+    res.status(200).json(
+        new ApiResponse(200, video[0], "Video details fetched successfully")
     );
 });
 
@@ -263,6 +426,61 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
     );
 });
 
+// video.controller.js
+
+const getVideosByChannel = asyncHandler(async (req, res) => {
+    const { channelId } = req.params; // channelId from route params
+    let {
+        page = 1,
+        limit = 12,
+        sortBy = "createdAt",
+        sortType = "desc",
+    } = req.query;
+
+    page = parseInt(page);
+    limit = parseInt(limit);
+    const sortDirection = sortType === "asc" ? 1 : -1;
+    const sort = { [sortBy]: sortDirection };
+
+    // Match videos where VideoCreater equals channelId
+    const match = {
+        VideoCreater: new mongoose.Types.ObjectId(channelId),
+    };
+
+    const aggregate = Video.aggregate([
+        { $match: match },
+        {
+            $lookup: {
+                from: "users",
+                localField: "VideoCreater",
+                foreignField: "_id",
+                as: "owner",
+                pipeline: [
+                    { $project: { username: 1, avatar: 1, fullName: 1 } },
+                ],
+            },
+        },
+        {
+            $addFields: {
+                owner: { $first: "$owner" },
+            },
+        },
+        { $project: { ownerDetails: 0 } },
+        { $sort: sort },
+    ]);
+
+    const options = { page, limit };
+    const videos = await Video.aggregatePaginate(aggregate, options);
+
+    res.status(200).json(
+        new ApiResponse(
+            200,
+            { videos },
+            "Videos fetched for channel successfully"
+        )
+    );
+});
+
 export {
     getAllVideos,
     publishAVideo,
@@ -270,4 +488,5 @@ export {
     updateVideo,
     deleteVideo,
     togglePublishStatus,
+    getVideosByChannel
 };
