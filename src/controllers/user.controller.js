@@ -109,25 +109,11 @@ const registerUser = asyncHandler(async (req, res) => {
 });
 
 const loginUser = asyncHandler(async (req, res) => {
-    // req body -> data
-    // username or email
-    //find the user
-    //password check
-    //access and referesh token
-    //send cookie
-
     const { email, username, password } = req.body;
-    console.log(email);
 
     if (!username && !email) {
-        throw new ApiError(400, "username or email is required");
+        throw new ApiError(400, "Username or email is required");
     }
-
-    // Here is an alternative of above code based on logic discussed in video:
-    // if (!(username || email)) {
-    //     throw new ApiError(400, "username or email is required")
-
-    // }
 
     const user = await User.findOne({
         $or: [{ username }, { email }],
@@ -138,7 +124,6 @@ const loginUser = asyncHandler(async (req, res) => {
     }
 
     const isPasswordValid = await user.isPasswordCorrect(password);
-
     if (!isPasswordValid) {
         throw new ApiError(401, "Invalid user credentials");
     }
@@ -151,16 +136,16 @@ const loginUser = asyncHandler(async (req, res) => {
         "-password -refreshToken"
     );
 
-    const options = {
+    const cookieOptions = {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production", // true only in production
-        sameSite: "strict", // prevents CSRF
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
     };
 
     return res
         .status(200)
-        .cookie("accessToken", accessToken, options)
-        .cookie("refreshToken", refreshToken, options)
+        .cookie("accessToken", accessToken, cookieOptions)
+        .cookie("refreshToken", refreshToken, cookieOptions)
         .json(
             new ApiResponse(
                 200,
@@ -169,7 +154,7 @@ const loginUser = asyncHandler(async (req, res) => {
                     accessToken,
                     refreshToken,
                 },
-                "User logged In Successfully"
+                "User logged in successfully"
             )
         );
 });
@@ -297,19 +282,16 @@ const changeCurrentUserPassword = asyncHandler(async (req, res) => {
 });
 
 const getCurrentUser = asyncHandler(async (req, res) => {
-    // Get the current user from the request
-    const loggendInUser = req.user;
-
-    const currentUse = await User.findById(loggendInUser._id).select(
+    const currentUser = await User.findById(req.user._id).select(
         "-password -refreshToken"
     );
 
-    if (!currentUse) {
+    if (!currentUser) {
         throw new ApiError(404, "User not found");
     }
 
     res.status(200).json(
-        new ApiResponse(200, currentUse, "Current user fetched successfully")
+        new ApiResponse(200, currentUser, "Current user fetched successfully")
     );
 });
 
@@ -553,7 +535,11 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     return res
         .status(200)
         .json(
-            new ApiResponse(200, channel[0], "User channel fetched successfully")
+            new ApiResponse(
+                200,
+                channel[0],
+                "User channel fetched successfully"
+            )
         );
 });
 
