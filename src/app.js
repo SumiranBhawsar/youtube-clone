@@ -6,19 +6,39 @@ import cookieParser from "cookie-parser";
 
 const app = express();
 
+// app.use(
+//     cors({
+//         origin: function (origin, callback) {
+//             const allowedOrigins = [
+//                 process.env.CORS_ORIGIN,
+//                 "video-streaming-application-theta.vercel.app",
+//             ];
+//             if (!origin || allowedOrigins.includes(origin)) {
+//                 callback(null, true);
+//             } else {
+//                 callback(new Error("Not allowed by CORS"));
+//             }
+//         },
+//         credentials: true,
+//     })
+// );
+
+const allowedOrigins = [
+    "http://localhost:5173", // local dev
+    "video-streaming-application-theta.vercel.app", // production frontend
+    "", // if hosting frontend on Render
+];
+
 app.use(
     cors({
-        origin: function (origin, callback) {
-            const allowedOrigins = [
-                process.env.CORS_ORIGIN,
-                "video-streaming-application-theta.vercel.app",
-            ];
-            if (!origin || allowedOrigins.includes(origin)) {
+        origin: (origin, callback) => {
+            if (!origin || !allowedOrigins.includes(origin)) {
                 callback(null, true);
             } else {
                 callback(new Error("Not allowed by CORS"));
             }
         },
+        methods: ["GET", "POST", "PUT", "DELETE"],
         credentials: true,
     })
 );
