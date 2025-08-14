@@ -1,6 +1,8 @@
+import express from "express"; // ✅ ADD THIS
 import { app } from "./app.js";
 import connectDb from "./db/index.js";
 import dotenv from "dotenv";
+import path from "path";
 
 dotenv.config({
     path: "./env",
