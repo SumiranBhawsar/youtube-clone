@@ -173,9 +173,11 @@ const logoutUser = asyncHandler(async (req, res) => {
         }
     );
 
-    const options = {
+    const cookieOptions = {
         httpOnly: true,
-        secure: true,
+        secure: process.env.NODE_ENV === "production", // true on Render
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // required for cross-site cookies
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     };
 
     return res
