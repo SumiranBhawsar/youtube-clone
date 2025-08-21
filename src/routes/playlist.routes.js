@@ -4,6 +4,7 @@ import {
     addVideoToPlaylist,
     createPlaylist,
     deletePlaylist,
+    getAllPlaylist,
     getPlaylistById,
     getUserPlaylists,
     removeVideoFromPlaylist,
@@ -15,6 +16,8 @@ const router = Router();
 router.use(verifyJWT);
 
 router.route("/").post(createPlaylist);
+
+router.route("/all-playlists").get(getAllPlaylist)
 
 router.route("/user/:userId").get(getUserPlaylists); // ✨ ADD THIS ROUTE
 

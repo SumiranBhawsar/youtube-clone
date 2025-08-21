@@ -39,45 +39,16 @@ const createTweet = asyncHandler(async (req, res) => {
 });
 
 const getUserTweets = asyncHandler(async (req, res) => {
-    // TODO: get user tweets
-    // get user id from the params
-    // check field is not empty
-    // find user in the user model
-    // then apply the aggregation pipeline anf lookup the all tweets created by the user and addfield from the response user
-
     const { userId } = req.params;
 
     if (!userId) {
-        throw new ApiError(400, "All fileds are required ");
+        throw new ApiError(400, "UserId is required");
     }
-
-    // const allTweets = await Tweet.aggregate([
-    //     {
-    //         $match: {
-    //             owner: new mongoose.Types.ObjectId(req.user),
-    //         },
-    //     },
-    //     {
-    //         $lookup: {
-    //             from: "users",
-    //             localField: "owner",
-    //             foreignField: "_id",
-    //             as: "ownerOfAllTweets",
-    //         },
-    //     },
-    //     {
-    //         $addFields: {
-    //             ownerOfAllTweets: {
-    //                 $first: "$ownerOfAllTweets",
-    //             },
-    //         },
-    //     },
-    // ]);
 
     const userWithAllTweets = await User.aggregate([
         {
             $match: {
-                _id: new mongoose.Types.ObjectId(req.user),
+                _id: new mongoose.Types.ObjectId(userId), // ✅ use userId from params
             },
         },
         {
@@ -93,22 +64,23 @@ const getUserTweets = asyncHandler(async (req, res) => {
                 username: 1,
                 email: 1,
                 fullName: 1,
+                avatar: 1,
                 allTweets: 1,
             },
         },
     ]);
 
-    // console.log(user[0]);
-
-    const allTweets = userWithAllTweets[0];
+    if (!userWithAllTweets.length) {
+        throw new ApiError(404, "User not found");
+    }
 
     res.status(200).json(
         new ApiResponse(
             200,
             {
-                userWithAllTweets: allTweets,
+                userWithAllTweets: userWithAllTweets[0],
             },
-            "All tweets are fetched with user successfully"
+            "All tweets fetched successfully"
         )
     );
 });

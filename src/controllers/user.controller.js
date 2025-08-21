@@ -601,6 +601,33 @@ const getWatchHistory = asyncHandler(async (req, res) => {
         );
 });
 
+const searchUsers = asyncHandler(async (req, res) => {
+    try {
+        const { query } = req.query;
+
+        if (!query || query.trim() === "") {
+            return res
+                .status(400)
+                .json({ message: "Query parameter is required" });
+        }
+
+        const users = await User.find({
+            $or: [
+                { username: { $regex: query, $options: "i" } },
+                { fullName: { $regex: query, $options: "i" } },
+            ],
+        }).select("username fullName email avatar");
+
+        res.json({ results: users });
+    } catch (error) {
+        console.error("Error in searchUsers:", error);
+        res.status(500).json({
+            message: "Internal server error",
+            error: error.message,
+        });
+    }
+});
+
 export {
     registerUser,
     loginUser,
@@ -613,4 +640,5 @@ export {
     updateUserCoverImage,
     getUserChannelProfile,
     getWatchHistory,
+    searchUsers,
 };

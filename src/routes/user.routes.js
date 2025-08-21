@@ -8,6 +8,7 @@ import {
     logoutUser,
     refreshAccessToken,
     registerUser,
+    searchUsers,
     updateAccountDetails,
     updateUserAvatar,
     updateUserCoverImage,
@@ -48,5 +49,7 @@ router
 router.route("/watchHistory").get(verifyJWT, getWatchHistory);
 
 router.route("/:channelId").get(verifyJWT, getUserChannelProfile);
+
+router.get("/search", verifyJWT, searchUsers);
 
 export default router;

@@ -7,6 +7,22 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
+const getAllPlaylist = asyncHandler(async (req, res) => {
+    // get the playlist from the playlist model
+    // check the all playlist get successfully
+    // send the response
+
+    const allPlaylist = await Playlist.find();
+
+    if (!allPlaylist) {
+        return res.status(200).json(200, [], "No playlists exist ");
+    }
+
+    res.status(200).json(
+        new ApiResponse(200, allPlaylist, "All playlist fetched successfully")
+    );
+});
+
 const createPlaylist = asyncHandler(async (req, res) => {
     const { name, description } = req.body;
 
@@ -84,7 +100,13 @@ const getUserPlaylists = asyncHandler(async (req, res) => {
 
     return res
         .status(200)
-        .json(new ApiResponse(200, playlists, "User playlists fetched successfully"));
+        .json(
+            new ApiResponse(
+                200,
+                playlists,
+                "User playlists fetched successfully"
+            )
+        );
 });
 
 const getPlaylistById = asyncHandler(async (req, res) => {
@@ -157,13 +179,18 @@ const getPlaylistById = asyncHandler(async (req, res) => {
 
     return res
         .status(200)
-        .json(new ApiResponse(200, playlist[0], "Playlist fetched successfully"));
+        .json(
+            new ApiResponse(200, playlist[0], "Playlist fetched successfully")
+        );
 });
 
 const addVideoToPlaylist = asyncHandler(async (req, res) => {
     const { playlistId, videoId } = req.params;
 
-    if (!mongoose.isValidObjectId(playlistId) || !mongoose.isValidObjectId(videoId)) {
+    if (
+        !mongoose.isValidObjectId(playlistId) ||
+        !mongoose.isValidObjectId(videoId)
+    ) {
         throw new ApiError(400, "Invalid Playlist or Video ID");
     }
 
@@ -179,16 +206,25 @@ const addVideoToPlaylist = asyncHandler(async (req, res) => {
 
     return res
         .status(200)
-        .json(new ApiResponse(200, updatedPlaylist, "Video added to playlist successfully"));
+        .json(
+            new ApiResponse(
+                200,
+                updatedPlaylist,
+                "Video added to playlist successfully"
+            )
+        );
 });
 
 const removeVideoFromPlaylist = asyncHandler(async (req, res) => {
     const { playlistId, videoId } = req.params;
 
-    if (!mongoose.isValidObjectId(playlistId) || !mongoose.isValidObjectId(videoId)) {
+    if (
+        !mongoose.isValidObjectId(playlistId) ||
+        !mongoose.isValidObjectId(videoId)
+    ) {
         throw new ApiError(400, "Invalid Playlist or Video ID");
     }
-    
+
     // FIX: Added { new: true } to get the updated document back
     // The response now correctly reflects the state of the playlist after removal.
     const updatedPlaylist = await Playlist.findByIdAndUpdate(
@@ -203,7 +239,13 @@ const removeVideoFromPlaylist = asyncHandler(async (req, res) => {
 
     return res
         .status(200)
-        .json(new ApiResponse(200, updatedPlaylist, "Video removed from playlist successfully"));
+        .json(
+            new ApiResponse(
+                200,
+                updatedPlaylist,
+                "Video removed from playlist successfully"
+            )
+        );
 });
 
 const deletePlaylist = asyncHandler(async (req, res) => {
@@ -248,7 +290,13 @@ const updatePlaylist = asyncHandler(async (req, res) => {
 
     return res
         .status(200)
-        .json(new ApiResponse(200, updatedPlaylist, "Playlist updated successfully"));
+        .json(
+            new ApiResponse(
+                200,
+                updatedPlaylist,
+                "Playlist updated successfully"
+            )
+        );
 });
 
 export {
@@ -259,4 +307,5 @@ export {
     removeVideoFromPlaylist,
     deletePlaylist,
     updatePlaylist,
+    getAllPlaylist,
 };
